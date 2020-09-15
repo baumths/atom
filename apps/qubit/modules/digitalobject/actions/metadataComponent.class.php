@@ -61,38 +61,39 @@ class DigitalObjectMetadataComponent extends sfComponent
     $this->referenceCopyDenyReason = false;
     $this->thumbnailCopyDenyReason = false;
 
-    // Group permissions always control access to AtoM's representations if the digital object is related to an actor
-    if ($this->relatedToActor && QubitAcl::check($this->resource->object, 'read'))
+    // Check if the current user is authorized to access actor digital objects
+    if ($this->relatedToActor)
     {
-      $this->canAccessMasterFile = true;
+      $actor = $this->resource->object;
+
+      // Check user authorization to read master digital object
+      $this->canAccessMasterFile = $actor->isAuthorized(
+        $this->user, 'readMaster'
+      );
+
+      // Everyone can access actor reference and thumbnail digital objects
       $this->canAccessReferenceCopy = true;
       $this->canAccessThumbnailCopy = true;
     }
 
-    // If the digital object is related to an information object, access to AtoM's representations is controlled by
-    // PREMIS rights (for authenticated users) or group permissions
+    // If the digital object is related to an information object, access to
+    // AtoM's representations is controlled by PREMIS rights (for authenticated
+    // users) or group permissions
     if ($this->relatedToIo)
     {
-      if (
-        !$this->user->isAuthenticated()
-        && QubitGrantedRight::hasGrantedRights($this->resource->object->id)
-      ) {
-        $this->canAccessMasterFile = QubitGrantedRight::checkPremis(
-          $this->resource->object->id, 'readMaster', $this->masterFileDenyReason
-        );
-        $this->canAccessReferenceCopy = QubitGrantedRight::checkPremis(
-          $this->resource->object->id, 'readReference', $this->referenceCopyDenyReason
-        );
-        $this->canAccessThumbnailCopy = QubitGrantedRight::checkPremis(
-          $this->resource->object->id, 'readThumbnail', $this->thumbnailCopyDenyReason
-        );
-      }
-      else
-      {
-        $this->canAccessMasterFile = QubitAcl::check($this->resource->object, 'readMaster');
-        $this->canAccessReferenceCopy = QubitAcl::check($this->resource->object, 'readReference');
-        $this->canAccessThumbnailCopy = QubitAcl::check($this->resource->object, 'readThumbnail');
-      }
+      $infoObject = $this->resource->object;
+
+      $this->canAccessMasterFile = $infoObject->isAuthorized(
+        $this->user, 'readMaster', $this->masterFileDenyReason
+      );
+
+      $this->canAccessReferenceCopy = $infoObject->isAuthorized(
+        $this->user, 'readReference', $this->referenceCopyDenyReason
+      );
+
+      $this->canAccessThumbnailCopy = $infoObject->isAuthorized(
+        $this->user, 'readThumbnail', $this->thumbnailCopyDenyReason
+      );
     }
 
     // Statement shown as the Permissions field for preservation copies

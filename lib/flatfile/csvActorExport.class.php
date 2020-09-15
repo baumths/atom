@@ -139,10 +139,16 @@ class csvActorExport extends QubitFlatfileExport
     $this->setPlaceAccessPoints();
     $this->setSubjectAccessPoints();
 
-    if($this->options['includeDigitalObjectMeta'])
+    // Check if the current user is authorized to read the master digital object
+    if ($this->resource->isAuthorized($this->user, 'readMaster'))
     {
-      $this->setColumn('digitalObjectURI', $this->resource->getDigitalObjectPublicUrl());
-      $this->setColumn('digitalObjectChecksum', $this->resource->getDigitalObjectChecksum());
+      // Include master digital object URI and checksum in export
+      $this->setColumn(
+        'digitalObjectURI', $this->resource->getDigitalObjectPublicUrl()
+      );
+      $this->setColumn(
+        'digitalObjectChecksum', $this->resource->getDigitalObjectChecksum()
+      );
     }
     else
     {

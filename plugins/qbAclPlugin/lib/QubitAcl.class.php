@@ -89,7 +89,7 @@ class QubitAcl
    * Test user access to the given resource
    *
    * Note: Current sf_user is assumed, but can be overridden with
-   * $options['userId'].
+   * $options['user'].
    *
    * @param mixed   $resource object to which user is requesting access
    * @param integer $actions requested action key

@@ -1427,6 +1427,34 @@ class QubitInformationObject extends BaseInformationObject
     $this->digitalObjectsRelatedByobjectId[] = $digitalObject;
   }
 
+  /**
+   * Check if $user is authorized to perform $action on this object
+   *
+   * @param QubitUser $user to authorize
+   * @param string $action being requested (e.g. "readReference")
+   * @param string|null $denyReason optional parameter to capture which PREMIS
+   *                                rule denied authorization
+   *
+   * @return bool true if $user is authorized to perform $action
+   */
+  public function isAuthorized($user, $action, &$denyReason = null)
+  {
+    // Check QubitAcl and QubitGrantedRight rules if trying to access a digital
+    // object
+    $digitalObjectActions = ['readMaster', 'readReference', 'readThumbnail'];
+
+    if (in_array($action, $digitalObjectActions))
+    {
+      // Authorize against QubitInformationObjectAcl and QubitGrantedRight
+      // access rules
+      return QubitInformationObjectAcl::check($this, $action, ['user' => $user])
+        && QubitGrantedRight::checkPremis($this->id, $action, $denyReason);
+    }
+
+    // For other actions, just do a QubitAcl check
+    return QubitInformationObjectAcl::check($this, $action, ['user' => $user]);
+  }
+
   public function setRepositoryByName($name)
   {
     // ignore if repository URL instead of name is being passed

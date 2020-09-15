@@ -815,39 +815,107 @@ class QubitActor extends BaseActor
   }
 
   /**
-   * Return the absolute link to the digital object master unless the user has
-   * no permission (readMaster). Text objects are always allowed for reading.
+   * Check if $user is authorized for $action on this actor
    *
-   * @return string Absolute link to the digital object master
+   * @param QubitUser $user to authorize
+   * @param string $action being requested (e.g. "readReference")
+   *
+   * @return bool true if $user is authorized to perform requested $action
    */
-  public function getDigitalObjectLink()
+  public function isAuthorized($user, $action)
   {
-    if (count($this->digitalObjectsRelatedByobjectId) <= 0)
+    $digitalObjectActions = ['readMaster', 'readReference', 'readThumbnail'];
+
+    // Actor digital object actions don't have QubitAcl rules, so do custom
+    // authorization checks
+    if (in_array($action, $digitalObjectActions))
+    {
+      return $this->isDigitalObjectActionAuthorized($user, $action);
+    }
+
+    // For other actions, just do a QubitAcl check
+    return QubitAcl::check($this, $action, ['user' => $user]);
+  }
+
+  /**
+   * Check if $user is authorized to do $action on the digital object linked to
+   * this actor
+   *
+   * @param QubitUser $user to authorize
+   * @param string $action being requested (e.g. "readReference")
+   *
+   * @return bool true if $user is authorized to perform $action
+   */
+  private function isDigitalObjectActionAuthorized($user, $action)
+  {
+    // All users can access actor reference representations and thumbnails
+    if (in_array($action, ['readReference', 'readThumbnail']))
+    {
+      return true;
+    }
+
+    $digitalObject = $this->digitalObjectsRelatedByobjectId[0];
+
+    // All users are authorized to read text (PDF) masters
+    if (
+      null !== $digitalObject
+      && $digitalObject->mediaTypeId == QubitTerm::TEXT_ID
+    )
+    {
+      return true;
+    }
+
+    // All authenticated users are authorized to read actor master DOs
+    return $user->isAuthenticated();
+  }
+
+  /**
+   * Return the URL for the digital object master linked to this actor, if the
+   * current user has "read master" authorization.
+   *
+   * @return string|null The URL of the digital object master, or null
+   */
+  public function getDigitalObjectLink($user = null)
+  {
+    // If there are no digital objects linked to this actor, return null
+    if (0 === count($this->digitalObjectsRelatedByobjectId))
     {
       return;
     }
 
     $digitalObject = $this->digitalObjectsRelatedByobjectId[0];
+
+    // If the linked digital object isn't accessible via URL, return null
     if (!$digitalObject->masterAccessibleViaUrl())
     {
       return;
     }
 
-    $isText = in_array($digitalObject->mediaTypeId, array(QubitTerm::TEXT_ID));
-
-    $hasReadMaster = sfContext::getInstance()->user->isAuthenticated();
-    if ($hasReadMaster || $isText)
+    // If $user isn't explicitly passed, use the current user from sfContext
+    if (!isset($user))
     {
-      if (QubitTerm::EXTERNAL_URI_ID == $digitalObject->usageId)
-      {
-        return $digitalObject->path;
-      }
-      else
-      {
-        $request = sfContext::getInstance()->getRequest();
-        return $request->getUriPrefix().$request->getRelativeUrlRoot().
-          $digitalObject->getFullPath();
-      }
+      $user = sfContext::getInstance()->user;
+    }
+
+    // If $user isn't authorized to read the master, return null
+    if (!$this->isAuthorized($user, 'readMaster'))
+    {
+      return;
+    }
+
+    if (QubitTerm::EXTERNAL_URI_ID == $digitalObject->usageId)
+    {
+      // Return external digital object URI
+      return $digitalObject->path;
+    }
+    else
+    {
+      $request = sfContext::getInstance()->getRequest();
+
+      // Return the digital object's full URI
+      return $request->getUriPrefix()
+        . $request->getRelativeUrlRoot()
+        . $digitalObject->getFullPath();
     }
   }
 }

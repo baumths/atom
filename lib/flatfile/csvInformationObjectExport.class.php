@@ -115,11 +115,16 @@ class csvInformationObjectExport extends QubitFlatfileExport
       $this->descriptionStatusTerms[$this->resource->descriptionStatusId]
     );
 
-    if($this->options['includeDigitalObjectMeta'])
+    // Check if the current user is authorized to read the master digital object
+    if ($this->resource->isAuthorized($this->user, 'readMaster'))
     {
-      // Set digital object public URL and checksum
-      $this->setColumn('digitalObjectURI', $this->resource->getDigitalObjectPublicUrl());
-      $this->setColumn('digitalObjectChecksum', $this->resource->getDigitalObjectChecksum());
+      // Include master digital object URI and checksum in export
+      $this->setColumn(
+        'digitalObjectURI', $this->resource->getDigitalObjectPublicUrl()
+      );
+      $this->setColumn(
+        'digitalObjectChecksum', $this->resource->getDigitalObjectChecksum()
+      );
     }
     else
     {
@@ -129,7 +134,9 @@ class csvInformationObjectExport extends QubitFlatfileExport
     }
 
     // Set publication status
-    $this->setColumn('publicationStatus', $this->resource->getPublicationStatus());
+    $this->setColumn(
+      'publicationStatus', $this->resource->getPublicationStatus()
+    );
   }
 
   /*
